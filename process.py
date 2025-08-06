@@ -125,21 +125,42 @@ def plot_summary():
         print("Summary file is empty.")
         return
 
-    # Plot average concentrations
-    plt.figure(figsize=(10, 4))
-    plt.bar(filenames, avg_concs, color='skyblue')
-    plt.ylabel('Average Concentration (µM)')
-    plt.title('Average Creatinine Concentration per File')
-    plt.xticks(rotation=45, ha='right')
-    plt.tight_layout()
-    plt.show()
+    # # Plot average concentrations
+    # plt.figure(figsize=(10, 4))
+    # plt.bar(filenames, avg_concs, color='skyblue')
+    # plt.ylabel('Average Concentration (µM)')
+    # plt.title('Average Creatinine Concentration per File')
+    # plt.xticks(rotation=45, ha='right')
+    # plt.tight_layout()
+    # plt.show()
 
-    # Plot standard deviations
-    plt.figure(figsize=(10, 4))
-    plt.bar(filenames, std_devs, color='orange')
-    plt.ylabel('Standard Deviation (µM)')
-    plt.title('Standard Deviation of Creatinine Concentration per File')
-    plt.xticks(rotation=45, ha='right')
+    # # Plot standard deviations
+    # plt.figure(figsize=(10, 4))
+    # plt.bar(filenames, std_devs, color='orange')
+    # plt.ylabel('Standard Deviation (µM)')
+    # plt.title('Standard Deviation of Creatinine Concentration per File')
+    # plt.xticks(rotation=45, ha='right')
+    # plt.tight_layout()
+    # plt.show()
+
+    # One figure with two subplots
+    fig, axs = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+    
+    # Average concentration plot
+    axs[0].bar(filenames, avg_concs, color='skyblue')
+    axs[0].set_ylabel('Avg Concentration (µM)')
+    axs[0].set_title('Average Creatinine Concentration per File')
+    axs[0].grid(True)
+
+    # Standard deviation plot
+    axs[1].bar(filenames, std_devs, color='orange')
+    axs[1].set_ylabel('Std Dev (µM)')
+    axs[1].set_title('Standard Deviation of Creatinine Concentration per File')
+    axs[1].grid(True)
+
+    # x-axis labels at 45 degrees for both
+    plt.setp(axs[1].xaxis.get_majorticklabels(), rotation=45, ha='right')
+
     plt.tight_layout()
     plt.show()
 
@@ -152,3 +173,10 @@ if __name__ == "__main__":
         plot_summary()
     else:
         print("Unknown option. Exiting.")
+
+
+
+# To do
+# 1. Allow to continue monitoring after 'summary' command
+# 2. update caliberation curve from voltage to concentration
+# 3. update absolute path to relative path
