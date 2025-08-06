@@ -2,6 +2,8 @@ import json
 import os
 import matplotlib.pyplot as plt
 import csv 
+import threading
+
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -85,10 +87,21 @@ def start_monitoring():
     observer.schedule(NewFileHandler(), DATA_FOLDER, recursive=False)
     observer.start()
     print(f"Monitoring folder: {DATA_FOLDER}")
+
+    def input_listener():
+        while True:
+            cmd = input().strip().lower()
+            if cmd == "summary":
+                plot_summary()
+
+    listener_thread = threading.Thread(target=input_listener, daemon=True)
+    listener_thread.start()
+
     try:
         while True:
-            pass  # Keep script alive
+            pass 
     except KeyboardInterrupt:
+        print("Stopping...")
         observer.stop()
     observer.join()
 
@@ -131,7 +144,7 @@ def plot_summary():
     plt.show()
 
 if __name__ == "__main__":
-    mode = input("Type 'monitor' to watch for new files or 'summary' to plot summary data:\n").strip().lower()
+    mode = input("Type 'monitor' to watch for new files or 'summary' to plot summary data (any time):\n").strip().lower()
 
     if mode == "monitor":
         start_monitoring()
