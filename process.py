@@ -92,5 +92,50 @@ def start_monitoring():
         observer.stop()
     observer.join()
 
+def plot_summary():
+    if not os.path.exists(SUMMARY_FILE):
+        print("No summary file found.")
+        return
+
+    filenames = []
+    avg_concs = []
+    std_devs = []
+
+    with open(SUMMARY_FILE, mode='r') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            filenames.append(row["Filename"])
+            avg_concs.append(float(row["Average Concentration (uM)"]))
+            std_devs.append(float(row["Standard Deviation (uM)"]))
+
+    if not filenames:
+        print("Summary file is empty.")
+        return
+
+    # Plot average concentrations
+    plt.figure(figsize=(10, 4))
+    plt.bar(filenames, avg_concs, color='skyblue')
+    plt.ylabel('Average Concentration (µM)')
+    plt.title('Average Creatinine Concentration per File')
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.show()
+
+    # Plot standard deviations
+    plt.figure(figsize=(10, 4))
+    plt.bar(filenames, std_devs, color='orange')
+    plt.ylabel('Standard Deviation (µM)')
+    plt.title('Standard Deviation of Creatinine Concentration per File')
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.show()
+
 if __name__ == "__main__":
-    start_monitoring()
+    mode = input("Type 'monitor' to watch for new files or 'summary' to plot summary data:\n").strip().lower()
+
+    if mode == "monitor":
+        start_monitoring()
+    elif mode == "summary":
+        plot_summary()
+    else:
+        print("Unknown option. Exiting.")
