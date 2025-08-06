@@ -8,7 +8,12 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 
-DATA_FOLDER = r"C:\Users\caraf\OneDrive\Biodesign\concentration_reporter\data"
+#DATA_FOLDER = r"C:\Users\caraf\OneDrive\Biodesign\concentration_reporter\data"
+
+# relative path using current directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_FOLDER = os.path.join(BASE_DIR, "data")
+
 SUMMARY_FILE = os.path.join(DATA_FOLDER, "summary.csv") 
 
 # Temporary calibration: 1V -> 10000 µM
