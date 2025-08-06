@@ -3,10 +3,8 @@ import os
 import matplotlib.pyplot as plt
 import csv 
 import threading
-
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-
 
 #DATA_FOLDER = r"C:\Users\caraf\OneDrive\Biodesign\concentration_reporter\data"
 
@@ -16,9 +14,9 @@ DATA_FOLDER = os.path.join(BASE_DIR, "data")
 
 SUMMARY_FILE = os.path.join(DATA_FOLDER, "summary.csv") 
 
-# Temporary calibration: 1V -> 10000 µM
+# Temporary calibration: -1V -> 10000 µM
 def voltage_to_concentration(voltage):
-    return voltage * 10000
+    return voltage * -10000
 
 def extract_voltage_and_time_from_pssession(filepath):
     with open(filepath, 'rb') as file:
@@ -182,6 +180,5 @@ if __name__ == "__main__":
 
 
 # To do
-# 1. Allow to continue monitoring after 'summary' command
-# 2. update caliberation curve from voltage to concentration
-# 3. update absolute path to relative path
+# 1. update caliberation curve from voltage to concentration
+# 2. clear summary.csv every time we restart program
