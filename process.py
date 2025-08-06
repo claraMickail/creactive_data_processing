@@ -14,7 +14,7 @@ DATA_FOLDER = os.path.join(BASE_DIR, "data")
 
 SUMMARY_FILE = os.path.join(DATA_FOLDER, "summary.csv") 
 
-# Temporary calibration: -1V -> 10000 µM
+# Temporary calibration: 1V -> -10000 µM
 def voltage_to_concentration(voltage):
     return voltage * -10000
 
@@ -182,3 +182,6 @@ if __name__ == "__main__":
 # To do
 # 1. update caliberation curve from voltage to concentration
 # 2. clear summary.csv every time we restart program
+# 3. check why runtime error when doing initial ctrl C
+# 4. remove terminal usage - make it more user friendly
+# 5. make monitoring automatic and only the 'summary' as a user interferance
