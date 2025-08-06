@@ -1,100 +1,96 @@
+import json
 import os
-import pandas as pd
-import numpy as np 
+import matplotlib.pyplot as plt
+import csv 
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 
-DATA_DIR = "data"  # Directory where .pss files are stored
-CALIBRATION_SLOPE = 0.01  # µM per µA - replace 
-CALIBRATION_INTERCEPT = 0.05  # µM offset - replace
+DATA_FOLDER = r"C:\Users\caraf\OneDrive\Biodesign\concentration_reporter\data"
+SUMMARY_FILE = os.path.join(DATA_FOLDER, "summary.csv") 
 
-# Google says:
-# A linear equation to convert peak current to concentration is often represented as y = mx + b, 
-# where y is the peak current, x is the concentration, m is the slope (response factor), 
-# and b is the y-intercept. This equation is derived from a calibration curve, 
-# which is a plot of peak current values against known concentrations. 
-# i.e concentration =  (current_peak - CALIBRATION_INTERCEPT) / CALIBRATION_SLOPE
+# Temporary calibration: 1V -> 10000 µM
+def voltage_to_concentration(voltage):
+    return voltage * 10000
 
-# ---- Parse .pss file ----
-def parse_file(filepath):
-    """
-    Parses a .pss file and returns a DataFrame with Voltage and Current.
-    Assumes columns are space-separated and the first two are voltage/current.
-    """
-    with open(filepath, 'r') as file:
-        lines = file.readlines()
+def extract_voltage_and_time_from_pssession(filepath):
+    with open(filepath, 'rb') as file:
+        raw = file.read()
+        try:
+            text = raw.decode('utf-8')
+        except UnicodeDecodeError:
+            try:
+                text = raw.decode('utf-16')
+            except UnicodeDecodeError:
+                text = raw.decode('latin1')
 
-    # Keep only lines that look like data (start with a digit or minus sign)
-    data_lines = [line.strip() for line in lines if line.strip() and (line[0].isdigit() or line[0] == '-')]
-    
-    # Split and extract just the first two columns (assumed: voltage and current; will need to figure out what the other two variables are)
-    data = [list(map(float, line.split()[:2])) for line in data_lines]  
-    df = pd.DataFrame(data, columns=["Voltage (V)", "Current (µA)"])  # pack result in neat table
-    return df
+    # Try to isolate the first full JSON object
+    first_brace = text.find('{')
+    last_brace = text.rfind('}') + 1
+    cleaned_text = text[first_brace:last_brace]
 
-# def calibrate(concentrations, peak_currents):
-#     """
-#     Performs linear regression to find the calibration slope (m) and intercept (b)
-#     from known concentrations and their corresponding peak currents.
-#     """
-#     # Ensure inputs are numpy arrays
-#     concentrations = np.array(concentrations)
-#     peak_currents = np.array(peak_currents)
-    
-#     # Fit a line: y = mx + b
-#     m, b = np.polyfit(concentrations, peak_currents, 1)
+    try:
+        data = json.loads(cleaned_text)
+    except json.JSONDecodeError:
+        print("Failed to parse JSON. Check if the file is corrupted.")
+        return [], []
 
-#     print("Calibration Results:")
-#     print(f"  Slope (m): {m:.5f} µA/µM")
-#     print(f"  Intercept (b): {b:.5f} µA")
-    
-#     return m, b
+    values = data["Measurements"][0]["DataSet"]["Values"]
+    time_values = next(ds["DataValues"] for ds in values if ds["Description"] == "time")
+    voltage_values = next(ds["DataValues"] for ds in values if ds["Description"] == "potential")
 
-# ---- Use calibration to get concentration ----
-def estimate_concentration(current_peak):
-    """
-    Converts a peak current to concentration using a linear calibration model.
-    """
-    return (current_peak - CALIBRATION_INTERCEPT) / CALIBRATION_SLOPE #adjust relationship
+    time = [v["V"] for v in time_values]
+    voltage = [v["V"] for v in voltage_values if v["S"] == 0]
 
-# ---- Handle a single file ----
+    min_len = min(len(time), len(voltage))
+    return time[:min_len], voltage[:min_len]
+
 def process_file(filepath):
     print(f"\nProcessing file: {filepath}")
-    df = parse_file(filepath)
-    
-    # Find the largest absolute current peak
-    peak_current = df["Current (µA)"].abs().max()
-    
-    # Estimate concentration using calibration
-    concentration = estimate_concentration(peak_current)
-    
-    # Show results in terminal
-    print(f"Peak Current: {peak_current:.2f} µA")
-    print(f"Estimated Concentration: {concentration:.2f} µM")
-    
-    # Save to a log file
-    result = pd.DataFrame([[os.path.basename(filepath), peak_current, concentration]],
-                          columns=["File", "Peak Current (µA)", "Estimated Concentration (µM)"])
-    log_path = os.path.join("concentration_log.csv")
-    
-    # Append or create new log
-    if os.path.exists(log_path):
-        result.to_csv(log_path, mode='a', header=False, index=False)
-    else:
-        result.to_csv(log_path, index=False)
+    time, voltage = extract_voltage_and_time_from_pssession(filepath)
+    concentration = [voltage_to_concentration(v) for v in voltage]
 
-    print("Logged to concentration_log.csv")
+    # Plot
+    plt.figure(figsize=(10, 4))
+    plt.plot(time, concentration, label='Creatinine (µM)', color='blue')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Concentration (µM)')
+    plt.title(f'Creatinine vs Time - {os.path.basename(filepath)}')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    # Stats
+    if concentration:
+        avg = sum(concentration) / len(concentration)
+        std = (sum((x - avg) ** 2 for x in concentration) / len(concentration)) ** 0.5
+
+        # Write to summary.csv
+        file_exists = os.path.isfile(SUMMARY_FILE)
+        with open(SUMMARY_FILE, mode='a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            if not file_exists:
+                writer.writerow(["Filename", "Average Concentration (uM)", "Standard Deviation (uM)"])
+            writer.writerow([os.path.basename(filepath), f"{avg:.2f}", f"{std:.2f}"])
+    else:
+        print("No valid voltage readings with S=0")
+
+class NewFileHandler(FileSystemEventHandler):
+    def on_created(self, event):
+        if not event.is_directory and event.src_path.endswith(".pssession"):
+            process_file(event.src_path)
+
+def start_monitoring():
+    observer = Observer()
+    observer.schedule(NewFileHandler(), DATA_FOLDER, recursive=False)
+    observer.start()
+    print(f"Monitoring folder: {DATA_FOLDER}")
+    try:
+        while True:
+            pass  # Keep script alive
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
 
 if __name__ == "__main__":
-    # Ensure data directory exists
-    os.makedirs(DATA_DIR, exist_ok=True)
-    
-    # Loop through all .pss files in the data folder
-    for fname in os.listdir(DATA_DIR):
-        if fname.endswith(".pss"):
-            process_file(os.path.join(DATA_DIR, fname))
-
-
-
-# -- NEXT STEPS --
-# When new file added, automatically track and update with watchdog
-# Nice visuals and graphs
+    start_monitoring()
